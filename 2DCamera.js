@@ -20,7 +20,7 @@
     SystemCameraProperties.prototype.initializeOrthoCamera = function(camera){
 
         camera.threeCamera = new THREE.OrthographicCamera(RPM.CANVAS_WIDTH / -6, RPM.CANVAS_WIDTH / 6,
-            RPM.CANVAS_WIDTH / 8, RPM.CANVAS_WIDTH / -8, 1, 1000);
+            RPM.CANVAS_WIDTH / 12, RPM.CANVAS_WIDTH / -12, 1, 1000);
         camera.distance = this.distance;
         camera.horizontalAngle = this.horizontalAngle;
         camera.verticalAngle = this.verticalAngle*0;
@@ -73,9 +73,6 @@
 
         cameras["Orthographic"] = new Camera(sysCam, RPM
             .game.hero);
-
-            
-        this.camera = cameras["Orthographic"];
     }
 
     var startTime = new Date();
@@ -84,11 +81,64 @@
     var originDistance = 0;
     var originY = 0;
     var moving = true;
+
+    var CamTransitioning = false; //Determines if the transitioning sequence is occuring. Also informs what is transitioning (2D or 3D?)
+    var transitionFaceSprites = false;
+    //Changes camera into orthographic 2D camera.
+    SceneMap.prototype.TransitionTo2D =  function(){
+        CamTransitioning = "2D"
+        cameras["TransitionCamera"] = RPM.currentMap.camera.threeCamera.clone();
+        console.log(cameras["TransitionCamera"].distance);
+        this.updateTransitionCameras(CamTransitioning); 
+    }
+
+    //Changes camera into perspective 3D camera.
+    SceneMap.prototype.TransitionTo3D =  function(){
+        CamTransitioning = "3D"
+        this.updateTransitionCameras(CamTransitioning); 
+    }
+
+    //Transitions to the opposite current camera...2D -> 3D, 3D -> 2D.
+    SceneMap.prototype.TransitionToNextCam =  function(){
+        
+    }
+
     var Alias_update = SceneMap.prototype.update;
-    SceneMap.prototype.update =  function(){
+    SceneMap.prototype.update =  function(){  
+        Alias_update.call(this);
+        if(CamTransitioning)
+            this.updateTransitionCameras(CamTransitioning);
+    }
+
+    //Controls the sequence and input of switching cameras from 2D to 3D.
+    SceneMap.prototype.updateTransitionCameras =  function(Dim){
+
+        //Ultimately, the difference between 2D and 3D is FOV. This checks if camera is done tranitioning and switches.
+        if(this.camera.threeCamera.fov){
+            //It is 3D
+            if(Dim === "3D") //Are we transitioning to 3D while still in 3D?
+                if(transitionFaceSprites) //When going to 3D, we need to turn perspective back on.
+                    this.TranCame2DTo3D();
+                else //If done transition turn off.
+                    CamTransitioning = false;
+            else{ // Now we transition from 3D to 2D.
+                this.TranCame3DTo2D();
+            }
+        }else{
+            if(Dim === "2D"){
+                CamTransitioning = false;
+            }
+            else{
+                this.TranCame2DTo3D();
+            }
+        }
+    }
+
+    SceneMap.prototype.TranCame3DTo2D = function(){
+
         let turningAngle = RPM.currentMap.camera.verticalAngle*-0.15;
-        //Checks if this is the original angle.
         perpAngle = RPM.currentMap.camera.verticalAngle;
+
         if(originAngle < 1){
             originDistance = RPM.currentMap.camera.distance;
             originAngle = RPM.currentMap.camera.verticalAngle;
@@ -96,53 +146,55 @@
             moving = false;
         }
 
+        transitionCameraTo2D(this.camera, -1, perpAngle);
+        this.RotateAllFaceSprites(turningAngle, false);
 
-        Alias_update.call(this);
+        if( Math.abs(RPM.currentMap.camera.verticalAngle) < 5){
+            turningAngle = -90;
+            RPM.game.hero.position.y = 10;
+            RPM.game.hero.move(0,0,0,0);    
+            //When finished change camera.
+            this.camera = cameras["Orthographic"];
+            
+        }
 
-        //Changes perspective.
-        if(Math.abs(startTime - new Date()) < 5500){
+    }
+
+    SceneMap.prototype.TranCame2DTo3D = function(){
+
+        transitionFaceSprites = true;
+        let turningAngle = RPM.currentMap.camera.verticalAngle*-0.15;
+        perpAngle = RPM.currentMap.camera.verticalAngle;
+
+        if(originAngle < 1){
+            originDistance = RPM.currentMap.camera.distance;
+            originAngle = RPM.currentMap.camera.verticalAngle;
+            originY = RPM.game.hero.position.y;
+            moving = false;
+        }
+
+ 
+        //Changes camera to perspective after transitioning is complete.
+        this.camera = cameras["Perspective"];
+        
+        if( Math.abs(RPM.currentMap.camera.verticalAngle - originAngle) < 5){
             turningAngle = 270;
             RPM.game.hero.position.y = originY;
-            RPM.currentMap.camera.verticalAngle = originAngle;
-            RPM.currentMap.camera.distance = originDistance;
-            //Makes character land back to position.
-            if(!moving){
-
-                RPM.game.hero.move(0,0,0,0);
-                
-            }
-            moving = true;
-            this.camera = cameras["Perspective"];
-            if(Math.abs(startTime - new Date()) > 5400){
-                moving = false;
-            }
-
-            
-            
-        }
-        else if(Math.abs(startTime - new Date()) < 12500){
-            
-            transitionCameraTo2D(this.camera, -1, perpAngle);
-            if( Math.abs(RPM.currentMap.camera.verticalAngle) < 5){
-                turningAngle = -90;
-                RPM.game.hero.position.y = 10;
-
-                //Makes character land back to position.
-                if(!moving){
-                    RPM.game.hero.move(0,0,0,0);
-                }
-                moving = true;
-                this.camera = cameras["Orthographic"];
-            }
-                
-        }else{
-            this.camera = cameras["Perspective"];
-            transitionCameraTo3D(this.camera, -1, perpAngle);
-            moving = false;
-            if( Math.abs(RPM.currentMap.camera.verticalAngle - originAngle) < 5)
-                startTime = new Date();
+            transitionFaceSprites = false;
+            RPM.game.hero.move(0,0,0,0);
+            console.log(RPM.currentMap.camera.distance)
+            RPM.currentMap.camera.threeCamera.distance = cameras["TransitionCamera"].distance;
+            console.log(RPM.currentMap.camera.distance)
         }
 
+        transitionCameraTo3D(this.camera, -1, perpAngle);
+        this.RotateAllFaceSprites(turningAngle, false);
+
+        
+    }
+
+
+    SceneMap.prototype.RotateAllFaceSprites = function(turningAngle){
         // Update face sprites
         if (!this.isBattleMap) 
         {
@@ -158,9 +210,7 @@
                 }
             });
         }
-            
     }
-
     var transitionCameraTo2D = function(camera, timeLeft, originAngle){
 
         // Updating the time left
