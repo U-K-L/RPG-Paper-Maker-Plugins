@@ -82,33 +82,63 @@
     var perpAngle = 0;
     var originAngle = 0;
     var originDistance = 0;
+    var originY = 0;
+    var moving = true;
     var Alias_update = SceneMap.prototype.update;
     SceneMap.prototype.update =  function(){
-        let turningAngle = RPM.currentMap.camera.verticalAngle;
+        let turningAngle = RPM.currentMap.camera.verticalAngle*-0.15;
         //Checks if this is the original angle.
         perpAngle = RPM.currentMap.camera.verticalAngle;
         if(originAngle < 1){
             originDistance = RPM.currentMap.camera.distance;
             originAngle = RPM.currentMap.camera.verticalAngle;
+            originY = RPM.game.hero.position.y;
+            moving = false;
         }
 
 
         Alias_update.call(this);
 
         //Changes perspective.
-        if(Math.abs(startTime - new Date()) < 2500){
+        if(Math.abs(startTime - new Date()) < 5500){
+            turningAngle = 270;
+            RPM.game.hero.position.y = originY;
             RPM.currentMap.camera.verticalAngle = originAngle;
             RPM.currentMap.camera.distance = originDistance;
+            //Makes character land back to position.
+            if(!moving){
+
+                RPM.game.hero.move(0,0,0,0);
+                
+            }
+            moving = true;
             this.camera = cameras["Perspective"];
+            if(Math.abs(startTime - new Date()) > 5400){
+                moving = false;
+            }
+
+            
+            
         }
-        else if(Math.abs(startTime - new Date()) < 7500){
+        else if(Math.abs(startTime - new Date()) < 12500){
             
             transitionCameraTo2D(this.camera, -1, perpAngle);
-            if( Math.abs(RPM.currentMap.camera.verticalAngle) < 5)
+            if( Math.abs(RPM.currentMap.camera.verticalAngle) < 5){
+                turningAngle = -90;
+                RPM.game.hero.position.y = 10;
+
+                //Makes character land back to position.
+                if(!moving){
+                    RPM.game.hero.move(0,0,0,0);
+                }
+                moving = true;
                 this.camera = cameras["Orthographic"];
+            }
+                
         }else{
             this.camera = cameras["Perspective"];
             transitionCameraTo3D(this.camera, -1, perpAngle);
+            moving = false;
             if( Math.abs(RPM.currentMap.camera.verticalAngle - originAngle) < 5)
                 startTime = new Date();
         }
@@ -117,14 +147,14 @@
         if (!this.isBattleMap) 
         {
             // Update the objects
-            //RPM.game.hero.update(RPM.currentMap.camera.verticalAngle);
+            RPM.game.hero.updateRot2DCam(turningAngle);
             this.updatePortions(this, function(x, y, z, i, j, k)
             {
                 // Update face sprites
                 let mapPortion = this.getMapPortion(i, j, k);
                 if (mapPortion)
                 {
-                    mapPortion.updateFaceSprites2D(turningAngle);
+                    mapPortion.updateFaceSprites2D(turningAngle, !moving);
                 }
             });
         }
@@ -208,16 +238,32 @@
         return originAngle;
     }
 
-    MapPortion.prototype.updateFaceSprites2D =  function(angle){ //Is it 2D?
+    MapPortion.prototype.updateFaceSprites2D =  function(angle, updatePos = false){ //Is it 2D?
         let i, l;
         for (i = 0, l = this.faceSpritesList.length; i < l; i++)
         {
             this.faceSpritesList[i].rotation.x = angle;
+            if(updatePos){
+                if(angle === -90)
+                this.faceSpritesList[i].position.y -= 2;
+            else if(angle === 270)
+                this.faceSpritesList[i].position.y += 2;
+            }
+
         }
         for (i = 0, l = this.objectsList.length; i < l; i++)
         {
+
             this.objectsList[i].update(angle);
+            this.objectsList[i].changeState();
+            this.objectsList[i].move(0,0,0,0);
+
+
         }
+    }
+
+    MapObject.prototype.updateRot2DCam = function(angle){
+        this.mesh.rotation.x = angle;
     }
 
 })();
