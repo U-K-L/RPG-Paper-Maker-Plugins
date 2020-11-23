@@ -28,9 +28,6 @@ class paperBehaviour{
     //This will get the mapObject of which this script modifies.
     async begin(){
         this.gameObject = await paperBehaviour.getObjectFromName(this.name);
-        if(this.gameObject){
-        }
-           
     }
 
     update(){}
@@ -75,6 +72,28 @@ class paperBehaviour{
         return returningObj;
     }
     
+     
+    //Returns all objects in scene including the player.
+    static async getAllObjectsInScene(){
+        let objectID = RPM.game.hero.system.id; //Gets the hero's ID so that only camera view is considered.
+
+        //Portions of the map based on the event's position.
+        let globalPortion = SceneMap.getGlobalPortion(RPM.currentMap.allObjects[
+            objectID]);
+            
+        let localPortion = RPM.currentMap.getLocalPortion(globalPortion);
+        let mapPortion;
+        
+        let returningObj = null; //The object that is returned.
+        if (RPM.currentMap.isInPortion(localPortion))
+        {
+    
+            mapPortion = RPM.currentMap.getMapPortionByPortion(localPortion);
+            let objects = mapPortion.objectsList;
+            returningObj = objects;
+        }
+        return returningObj;
+    }
 
 }
 
