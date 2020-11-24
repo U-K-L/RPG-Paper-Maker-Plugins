@@ -17,6 +17,7 @@ class movingRandomly extends paperBehaviour{
 
     update(){
         this.spinInCircles();
+        
     }
 
     spinInCircles(){
