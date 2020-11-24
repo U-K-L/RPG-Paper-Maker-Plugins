@@ -219,7 +219,6 @@
         RPM.currentMap.camera.updateAngles();
         RPM.currentMap.camera.updateDistance();
 
-        console.log(RPM.elapsedTime);
         // Rotation
 
 
